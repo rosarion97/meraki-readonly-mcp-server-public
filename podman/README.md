@@ -80,6 +80,38 @@ startup; the server refuses to launch if either is missing.
 | `MERAKI_ORG_ID` | **Required.** Pins this server instance to a single organization. Every org-scoped tool uses this value; the model cannot target a different org. | Run `curl -H "Authorization: Bearer $MERAKI_API_KEY" https://api.meraki.com/api/v1/organizations` and copy the `id` of the org you want this instance to serve. |
 | `MERAKI_MAX_RESPONSE_BYTES` | *Optional.* Hard cap on the JSON size of any one tool response. Responses above this size are returned as a truncation envelope with a `_hint` field telling the model how to re-query. Default `120000` (~30k tokens). Raise for big-window models, lower for small ones. | Pick a value based on your model's context window. |
 
+The server reads `MERAKI_API_KEY` and `MERAKI_ORG_ID` as **plain environment
+variables only**. There is no secret-file mode — a secret must be *injected
+into the environment*, not mounted as a file at `/run/secrets`. Both options
+below do exactly that. Pick **one**.
+
+### Option 1 — podman secret (preferred)
+
+Store each value once in Podman's encrypted secret store; nothing sensitive
+sits in a plaintext file in your project, and it never appears in
+`podman inspect` output.
+
+```bash
+printf '%s' 'YOUR_MERAKI_API_KEY' | podman secret create meraki_api_key -
+printf '%s' 'YOUR_ORG_ID'         | podman secret create meraki_org_id  -
+podman secret ls   # confirm both exist (values are not shown)
+```
+
+Then inject each secret into the env var the server reads with
+`--secret …,type=env`:
+
+```bash
+podman run --rm -i \
+  --secret meraki_api_key,type=env,target=MERAKI_API_KEY \
+  --secret meraki_org_id,type=env,target=MERAKI_ORG_ID \
+  meraki-readonly-mcp:latest
+```
+
+> Use `type=env`, not the default `type=mount`. The server reads env vars, not
+> files under `/run/secrets`.
+
+### Option 2 — `.env` file (fallback)
+
 ```bash
 cp .env.example .env
 # Edit .env and set BOTH:
@@ -88,7 +120,9 @@ cp .env.example .env
 chmod 600 .env   # restrict file perms
 ```
 
-`.env` is gitignored. Do not commit it.
+`.env` is gitignored and excluded from the image by `.containerignore` — it is
+mounted at runtime with `--env-file`, never baked into the image. Do not
+commit it.
 
 **Why pin the org statically?**
 
@@ -142,6 +176,25 @@ Add (or merge) the `meraki` entry:
 }
 ```
 
+Using podman secrets instead of `.env` (Option 1) — swap the `--env-file`
+arg for `--secret` args:
+
+```json
+{
+  "mcpServers": {
+    "meraki": {
+      "command": "podman",
+      "args": [
+        "run", "--rm", "-i",
+        "--secret", "meraki_api_key,type=env,target=MERAKI_API_KEY",
+        "--secret", "meraki_org_id,type=env,target=MERAKI_ORG_ID",
+        "meraki-readonly-mcp:latest"
+      ]
+    }
+  }
+}
+```
+
 Notes:
 
 * `-i` (`--interactive`) is **required** — MCP stdio needs stdin attached.
@@ -149,6 +202,8 @@ Notes:
   stopped containers.
 * The path passed to `--env-file` **must be absolute**. Claude Desktop does
   not expand `~` or run commands from your shell's working directory.
+* The secret variant needs the secrets created first (`podman secret create`,
+  see §4 Option 1). The secrets live in Podman's store, so no path is needed.
 
 Restart Claude Desktop after editing the config. The `meraki` server should
 appear in the MCP tools list.
@@ -416,9 +471,13 @@ to take effect.
 * **Recommended key scope.** Generate the API key under a dedicated Meraki
   admin whose **Organization access** is set to **Read-only** in the
   Dashboard. This adds defense in depth.
-* **Secret storage.** `.env` is gitignored. Don't commit it. If you rotate
-  keys, restart the MCP client so it relaunches the container with the
-  new environment.
+* **Secret storage.** Prefer a `podman secret` injected with `type=env`
+  (§4 Option 1) over `.env`: it keeps the key out of a plaintext project file,
+  out of the image, and out of `podman inspect` output. The server reads
+  credentials as plain environment variables only. `.env` is gitignored and
+  excluded from the build context by `.containerignore`; if you use it, don't
+  commit it. If you rotate keys, restart the MCP client so it relaunches the
+  container with the new credentials.
 
 ---
 

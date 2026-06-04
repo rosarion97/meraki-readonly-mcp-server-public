@@ -45,11 +45,17 @@ MAX_RESPONSE_BYTES = max(
 # for less; it just can't ask for more.
 PER_PAGE_CAP = 50
 
+# Credentials are read as plain environment variables only. Supply them with
+# `--env-file .env`, or as a podman/docker secret injected into the env with
+# `--secret <name>,type=env,target=MERAKI_API_KEY` (or the Docker Desktop MCP
+# Toolkit, which injects secrets as env vars). The server does not read secret
+# files mounted at /run/secrets (type=mount) — env injection is the only path.
 MERAKI_API_KEY = os.environ.get("MERAKI_API_KEY", "").strip()
 if not MERAKI_API_KEY:
     print(
-        "ERROR: MERAKI_API_KEY environment variable is not set. "
-        "Pass it with `--env-file .env` when running the container.",
+        "ERROR: MERAKI_API_KEY is not set. Provide it as an environment "
+        "variable: `--env-file .env`, or a secret injected as an env var "
+        "(`--secret meraki_api_key,type=env,target=MERAKI_API_KEY`).",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -57,9 +63,9 @@ if not MERAKI_API_KEY:
 MERAKI_ORG_ID = os.environ.get("MERAKI_ORG_ID", "").strip()
 if not MERAKI_ORG_ID:
     print(
-        "ERROR: MERAKI_ORG_ID environment variable is not set. "
-        "This server is pinned to a single organization; set MERAKI_ORG_ID "
-        "in your .env file to the organization ID this instance should serve.",
+        "ERROR: MERAKI_ORG_ID is not set. This server is pinned to a single "
+        "organization; provide it as an environment variable (`--env-file .env` "
+        "or a secret injected with type=env).",
         file=sys.stderr,
     )
     sys.exit(1)
