@@ -1,0 +1,23 @@
+version: "2"
+registry:
+  meraki-readonly:
+    name: Cisco Meraki Read-Only
+    description: Query a Cisco Meraki organization in read-only mode using the Meraki Dashboard API v1. Retrieve org/network info, device inventory, clients, switch and wireless configuration, alerts, and traffic analytics — without making any configuration changes. The server is pinned to a single organization via MERAKI_ORG_ID; org-scoped tools cannot target a different org. Not affiliated with or endorsed by Cisco.
+    categories:
+      - network
+      - monitoring
+      - wireless
+    image: meraki-readonly-mcp:latest
+    secrets:
+      - name: MERAKI_API_KEY
+        env: MERAKI_API_KEY
+        required: true
+        description: Meraki Dashboard API bearer token (Dashboard → My Profile → API access → Generate new API key)
+      - name: MERAKI_ORG_ID
+        env: MERAKI_ORG_ID
+        required: true
+        description: Organization ID this server instance is pinned to. Org-scoped tools cannot target a different org.
+      - name: MERAKI_MAX_RESPONSE_BYTES
+        env: MERAKI_MAX_RESPONSE_BYTES
+        required: false
+        description: JSON byte cap per tool response. Default 120000 (~30k tokens).

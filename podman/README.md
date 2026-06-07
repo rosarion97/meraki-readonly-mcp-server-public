@@ -212,25 +212,82 @@ appear in the MCP tools list.
 
 ## 7. Claude Code configuration
 
-For project-scoped use, put this in `.claude/settings.json` at the root of
-your project. For global use, put it in `~/.claude/settings.json`.
+Claude Code uses the same `command` / `args` schema as §6, just in a different
+file. Three scopes:
 
-```json
-{
-  "mcpServers": {
-    "meraki": {
-      "command": "podman",
-      "args": [
-        "run", "--rm", "-i",
-        "--env-file", "/absolute/path/to/.env",
-        "meraki-readonly-mcp:latest"
-      ]
-    }
-  }
-}
+| Scope | File | Sharing |
+|---|---|---|
+| **local** (default) | `~/.claude.json`, under this project's entry | just you, just this project |
+| **project** | `.mcp.json` at the project root | shared via git with collaborators |
+| **user** (global) | `~/.claude.json`, top level | just you, every project |
+
+**Easiest path — let the CLI write it for you.** Pick the scope and option that
+matches §4:
+
+Option 1 (Podman secret store, preferred):
+
+```bash
+claude mcp add -s user meraki -- \
+  podman run --rm -i \
+  --secret meraki_api_key,type=env,target=MERAKI_API_KEY \
+  --secret meraki_org_id,type=env,target=MERAKI_ORG_ID \
+  meraki-readonly-mcp:latest
 ```
 
-Same rules apply: `-i` is mandatory, the path must be absolute.
+Option 2 (plaintext `.env` file):
+
+```bash
+claude mcp add -s user meraki -- \
+  podman run --rm -i \
+  --env-file /absolute/path/to/.env \
+  meraki-readonly-mcp:latest
+```
+
+Use `-s user` for global, `-s project` to commit the entry to `.mcp.json` for
+collaborators, or omit `-s` for the default local scope. Verify with
+`claude mcp list`.
+
+---
+
+## 7b. Codex configuration
+
+OpenAI Codex reads MCP server config from a TOML file instead of JSON. Two
+scopes:
+
+| Scope | File | Trust requirement |
+|---|---|---|
+| **global** | `~/.codex/config.toml` | none |
+| **project** | `.codex/config.toml` at the project root | Codex only loads project files for **trusted** projects — confirm trust in Codex before relying on this scope |
+
+The translation from the §6 JSON is mechanical: `mcpServers.foo` →
+`[mcp_servers.foo]`; same `command`, same `args`.
+
+Option 1 (Podman secret store):
+
+```toml
+[mcp_servers.meraki]
+command = "podman"
+args = [
+  "run", "--rm", "-i",
+  "--secret", "meraki_api_key,type=env,target=MERAKI_API_KEY",
+  "--secret", "meraki_org_id,type=env,target=MERAKI_ORG_ID",
+  "meraki-readonly-mcp:latest",
+]
+```
+
+Option 2 (`.env` file):
+
+```toml
+[mcp_servers.meraki]
+command = "podman"
+args = [
+  "run", "--rm", "-i",
+  "--env-file", "/absolute/path/to/.env",
+  "meraki-readonly-mcp:latest",
+]
+```
+
+Restart Codex or open a new project thread so the MCP server loads.
 
 ---
 
