@@ -5,8 +5,12 @@ Cisco Meraki Dashboard API v1. Packaged as a Docker container and designed to
 be launched directly by an MCP client (Claude Desktop, Claude Code, or the
 **Docker Desktop MCP Toolkit**) over the **stdio** transport.
 
-This is the Docker sibling of [`../podman`](../podman). The `server.py` is
-byte-for-byte identical to the Podman build; only the runtime tooling differs.
+> New here? Start with the [repo overview](../README.md). This is the Docker
+> sibling of [`../podman/`](../podman/README.md); the `server.py` is
+> byte-for-byte identical to the Podman build — only the runtime tooling differs.
+
+> Not affiliated with or endorsed by Cisco Systems or Cisco Meraki. Use at your
+> own risk.
 
 ---
 
